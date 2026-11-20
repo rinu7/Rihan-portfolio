@@ -166,7 +166,7 @@ let carSeen = false;
 let carAway = false;      // the work page has been fully covered by the next one
 const carState = () => { carVisible = carSeen && !carAway; syncClips(); };
 const syncClips = () => {
-  const modal = document.getElementById('player').open;
+  const modal = document.querySelector('dialog[open]');
   cards.forEach((c, i) => {
     const v = c.querySelector('video');
     const dist = Math.abs(wrap(i - shownNear));
@@ -311,7 +311,7 @@ if (!reduced) {
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
     const stopped = !carVisible || drag || now < holdUntil
-      || document.getElementById('player').open || document.visibilityState === 'hidden';
+      || document.querySelector('dialog[open]') || document.visibilityState === 'hidden';
     const wanted = stopped ? 0 : hovering ? 0.28 : 1;
     rate += (wanted - rate) * Math.min(1, dt * 4);   // ease in and out of motion
     if (rate < 0.004 || drag) return;
@@ -847,7 +847,7 @@ function makeInk() {
   const at = {};
   ['G', 'Y', 'S', 'W', 'A', 'B', 'C', 'D'].forEach((n) => { at[n] = gl.getUniformLocation(prog, n); });
 
-  const pages = [...document.querySelectorAll('#work, #about, #tools, .process, #contact')];
+  const pages = [...document.querySelectorAll('#work, #bts, #about, #tools, .process, #contact')];
   const sheet = document.querySelector('.sheet');
   const away = pages.map(() => false);
   const pin = () => {
@@ -1014,7 +1014,7 @@ if (fine && !reduced) {
     if (!gliding) { gliding = true; requestAnimationFrame(glide); }
   };
   addEventListener('wheel', (e) => {
-    if (e.ctrlKey || document.getElementById('player').open) return;
+    if (e.ctrlKey || document.querySelector('dialog[open]')) return;
     e.preventDefault();
     if (inTransition) return;
     const unit = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? innerHeight : 1;
@@ -1207,3 +1207,80 @@ const layout = () => { measure(); paint(); };
 addEventListener('resize', layout);
 layout();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+
+// ---- behind the scenes: Instagram-style stories -------------------------
+const shots = (name, n) => Array.from({ length: n }, (_, k) => `${name}-${k + 1}.jpg`);
+const BTS = [
+  ['BTS', ['intro.mp4', 'cars-1.jpg', 'cars-2.mp4', 'cars-3.mp4', 'cars-4.mp4', 'cars-5.jpg',
+    ...shots('events', 11), ...shots('sports', 5), ...shots('studio', 5), ...shots('food', 6)]],
+];
+const story = document.getElementById('story');
+const storyMedia = document.getElementById('storyMedia');
+const storyBars = document.getElementById('storyBars');
+const storyName = document.getElementById('storyName');
+const rings = document.getElementById('btsRings');
+let sg = 0;
+let si = 0;
+let ringOpener = null;
+
+rings.innerHTML = BTS.map(([name, items], g) => `<li><button type="button" class="bts__ring" data-g="${g}">
+  <span class="ring"><b>${name}</b></span><small>${items.length} snippets</small></button></li>`).join('');
+
+const showStory = () => {
+  const [name, items] = BTS[sg];
+  const file = `assets/bts/${items[si]}`;
+  storyMedia.querySelector('video')?.pause();   // a detached video keeps playing otherwise
+  storyName.textContent = name;
+  storyBars.innerHTML = items.map((_, k) => `<span><i style="width:${k < si ? 100 : 0}%"></i></span>`).join('');
+  const fill = storyBars.children[si].firstChild;
+  if (file.endsWith('.mp4')) {
+    const v = document.createElement('video');
+    v.src = file;
+    v.playsInline = true;
+    v.ontimeupdate = () => { fill.style.width = `${(v.currentTime / v.duration) * 100}%`; };
+    v.onended = () => goStory(1);
+    storyMedia.replaceChildren(v);
+    v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+  } else {
+    const img = new Image();
+    img.alt = `${name}, behind the scenes ${si + 1} of ${items.length}`;
+    img.onload = () => fill.classList.add('run');
+    fill.onanimationend = () => goStory(1);
+    img.src = file;
+    storyMedia.replaceChildren(img);
+  }
+  rings.querySelector(`[data-g="${sg}"]`).classList.add('is-seen');
+};
+
+const goStory = (d) => {
+  si += d;
+  if (si >= BTS[sg][1].length) { sg += 1; si = 0; }
+  if (si < 0) { sg = Math.max(0, sg - 1); si = 0; }
+  if (sg >= BTS.length) { story.close(); return; }
+  showStory();
+};
+
+rings.addEventListener('click', (e) => {
+  const b = e.target.closest('.bts__ring');
+  if (!b) return;
+  ringOpener = b;
+  sg = Number(b.dataset.g);
+  si = 0;
+  story.showModal();
+  showStory();
+  syncClips();
+});
+story.addEventListener('close', () => {
+  storyMedia.querySelector('video')?.pause();
+  storyMedia.replaceChildren();
+  syncClips();
+  if (ringOpener) ringOpener.focus();
+});
+story.addEventListener('click', (e) => { if (e.target === story) story.close(); });
+story.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') goStory(1);
+  if (e.key === 'ArrowLeft') goStory(-1);
+});
+document.getElementById('storyPrev').addEventListener('click', () => goStory(-1));
+document.getElementById('storyNext').addEventListener('click', () => goStory(1));
+document.getElementById('storyClose').addEventListener('click', () => story.close());

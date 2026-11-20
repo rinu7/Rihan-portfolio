@@ -116,6 +116,14 @@
     </ol>
   </section>
 
+  <section class="bts" id="bts" aria-labelledby="btsTitle">
+    <div class="bts__head reveal">
+      <h2 id="btsTitle">Behind the scenes</h2>
+      <p>Tap to watch the story.</p>
+    </div>
+    <ul class="bts__rings reveal" id="btsRings"></ul>
+  </section>
+
 <footer class="end" id="contact">
   <p class="kicker reveal">Got a brand that needs content?</p>
   <p class="end__big reveal">Roll camera<i>.</i></p>
@@ -143,6 +151,17 @@
     <button type="button" id="playerClose" aria-label="Close video">×</button>
   </div>
   <video id="playerVideo" controls playsinline></video>
+</dialog>
+
+<dialog class="story" id="story" aria-labelledby="storyName">
+  <div class="story__bars" id="storyBars"></div>
+  <div class="story__top">
+    <p id="storyName"></p>
+    <button type="button" id="storyClose" aria-label="Close story">×</button>
+  </div>
+  <div class="story__media" id="storyMedia"></div>
+  <button type="button" class="story__tap story__tap--prev" id="storyPrev" aria-label="Previous snippet"></button>
+  <button type="button" class="story__tap story__tap--next" id="storyNext" aria-label="Next snippet"></button>
 </dialog>
 
 <script src="main.js"></script>
